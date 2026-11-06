@@ -239,21 +239,29 @@ window.APP = (function () {
     });
   }
 
- diag('wallet ' + addr.slice(0, 6));
-  }
+ async function connect() {
     if (me) return;
-    if (!window.tronLink) { me = 'TDemoWa11etXXXXXXXXXXXXXXXXXXXXXX'; return; }
-    var res = await window.tronLink.request({ method: 'tron_requestAccounts' });
-    tw = window.tronWeb;
-    if (!tw) throw new Error('TronLink gave no provider');
-    var addr = (res && (res.base58 || res.address)) || '';
-    for (var i = 0; i < 20 && !addr; i++) {
-      await sleep(150);
+    if (!window.tronLink) {
+      if (!window.tronWeb) { me = 'TDemoWa11etXXXXXXXXXXXXXXXXXXXXXX'; return; }
+      tw = window.tronWeb;
+    } else {
+      try { await window.tronLink.request({ method: 'tron_requestAccounts' }); } catch (e) {}
+      tw = (window.tronLink && window.tronLink.tronWeb) || window.tronWeb;
+    }
+    if (!tw) throw new Error('no wallet provider');
+    var addr = '';
+    if (tw.defaultAddress && tw.defaultAddress.base58) addr = tw.defaultAddress.base58;
+    for (var i = 0; i < 25 && !addr; i++) {
+      await sleep(200);
       if (tw.defaultAddress && tw.defaultAddress.base58) addr = tw.defaultAddress.base58;
     }
-    if (!addr) throw new Error('no address — unlock TronLink and approve the connection');
+    if (!addr) throw new Error('wallet gave no address — unlock TronLink');
     try { tw.setAddress(addr); } catch (e) {}
+    if (!tw.defaultAddress || !tw.defaultAddress.base58) {
+      tw.defaultAddress = { base58: addr, hex: tw.address.toHex(addr) };
+    }
     me = addr;
+    diag('wallet ' + addr.slice(0, 6));
   }
   
 
