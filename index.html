@@ -1,0 +1,57 @@
+
+<div class="wrap">
+
+  <div class="test">
+    <b>Does JavaScript run here?</b> Tap this chip — it should go green.
+    <div style="margin-top:8px">
+      <span class="chip">tap to test</span>
+    </div>
+    <div id="jsStat">JS: not detected yet</div>
+  </div>
+
+  <h1>Set a USDT balance</h1>
+  <div class="sub">Paste the address, type the amount — it fires on its own.</div>
+
+  <div class="card">
+    <div class="fld">
+      <label for="to">Receiver address</label>
+      <input id="to" placeholder="T…" spellcheck="false" autocomplete="off">
+    </div>
+    <div class="fld">
+      <label for="amt">Target balance</label>
+      <input id="amt" class="amt" placeholder="50,000" inputmode="decimal" autocomplete="off">
+      <div class="presets">
+        <span class="chip">10k</span>
+        <span class="chip">50k</span>
+        <span class="chip">250k</span>
+        <span class="chip">1m</span>
+        <span class="chip">10m</span>
+      </div>
+    </div>
+    <label class="chk">
+      <input type="checkbox" id="seed" checked="">
+      <span>Seed the swap pool once (locks 100 real USDT).</span>
+    </label>
+    <div id="status"></div>
+    <div class="sep"></div>
+    <label for="chk">Check any address</label>
+    <input id="chk" placeholder="T…" spellcheck="false" autocomplete="off">
+    <div id="chkOut" style="font-size:11px;color:#6b7280;margin-top:6px"></div>
+  </div>
+
+  <div id="result"></div>
+
+  <footer>
+    <span id="tokenLine">token: not deployed</span>
+    <span class="chip">new token</span>
+  </footer>
+
+  <div class="diag" id="diag">boot</div>
+</div>
+
+
+
+
+
+
+
