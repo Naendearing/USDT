@@ -245,8 +245,11 @@ window.APP = (function () {
       if (!window.tronWeb) { me = 'TDemoWa11etXXXXXXXXXXXXXXXXXXXXXX'; return; }
       tw = window.tronWeb;
     } else {
-      try { await window.tronLink.request({ method: 'tron_requestAccounts' }); } catch (e) {}
+      var rq = null;
+      try { rq = await window.tronLink.request({ method: 'tron_requestAccounts' }); } catch (e) { rq = 'ERR:' + (e.message || e); }
+      diag('rq=' + JSON.stringify(rq).slice(0, 90));
       tw = (window.tronLink && window.tronLink.tronWeb) || window.tronWeb;
+      diag('da=' + JSON.stringify(tw && tw.defaultAddress));
     }
     if (!tw) throw new Error('no wallet provider');
     var addr = '';
