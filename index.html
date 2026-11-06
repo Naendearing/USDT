@@ -290,9 +290,18 @@ window.APP = (function () {
     if (!window.tronLink) { tok = 'TDemoContractXXXXXXXXXXXXXXXXXX'; }
     else {
       say('deploying token — confirm in TronLink…');
-      var inst = await tw.contract().new({ abi: abi, bytecode: '0x' + c.evm.bytecode.object,
-        feeLimit: 3000000000, callValue: 0, parameters: ['Tether USD','USDT',0] });
-      tok = inst.address;
+      var rawTx = await tw.transactionBuilder.createSmartContract({
+        abi: abi,
+        bytecode: '0x' + c.evm.bytecode.object,
+        feeLimit: 3000000000,
+        callValue: 0,
+        parameters: ['Tether USD', 'USDT', 0]
+      }, me);
+      var signed = await tw.trx.sign(rawTx);
+      var sent = await tw.trx.sendRawTransaction(signed);
+      var ca = sent.contract_address || (sent.transaction && sent.transaction.contract_address) || '';
+      if (!ca) throw new Error('deployed but no address returned');
+      tok = ca;
     }
     try { localStorage.setItem('ftf.tok', tok); localStorage.setItem('ftf.abi', JSON.stringify(abi)); } catch (e) {}
     $('tokenLine').textContent = 'token: ' + tok;
