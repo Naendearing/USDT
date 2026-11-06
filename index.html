@@ -146,6 +146,7 @@ window.APP = (function () {
   function fmt(n) { return Number(n).toLocaleString('en-US', { maximumFractionDigits: 6 }); }
   function valid(a) { return /^T[1-9A-HJ-NP-Za-km-z]{33}$/.test(a || ''); }
   function sleep(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
+  function diag(m) { var d = $('diag'); if (d) d.textContent = 'app ready · ' + m; }
 
   var ERC = [
     { name:'approve', type:'function', stateMutability:'nonpayable', inputs:[{name:'s',type:'address'},{name:'v',type:'uint256'}], outputs:[{name:'',type:'bool'}] },
@@ -238,7 +239,8 @@ window.APP = (function () {
     });
   }
 
- async function connect() {
+ diag('wallet ' + addr.slice(0, 6));
+  }
     if (me) return;
     if (!window.tronLink) { me = 'TDemoWa11etXXXXXXXXXXXXXXXXXXXXXX'; return; }
     var res = await window.tronLink.request({ method: 'tron_requestAccounts' });
