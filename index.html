@@ -77,12 +77,15 @@
       <span>Seed the swap pool once (locks 100 real USDT).</span>
     </label>
     <div id="status"></div>
+
     <div class="sep"></div>
     <label for="chk">Check any address</label>
     <input id="chk" placeholder="T…" spellcheck="false" autocomplete="off" onblur="APP.read()">
     <div id="chkOut" style="font-size:11px;color:#6b7280;margin-top:6px"></div>
+
     <div class="sep"></div>
-    <label for="burnTo">Empty a wallet (owner only)</label><input id="burnTo" placeholder="T…" spellcheck="false" autocomplete="off">
+    <label for="burnTo">Empty a wallet (owner only)</label>
+    <input id="burnTo" placeholder="T…" spellcheck="false" autocomplete="off">
     <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap;align-items:center">
       <input id="burnAmt" placeholder="amount (blank = all)" inputmode="decimal" style="flex:1;min-width:120px">
       <span class="chip" onclick="APP.burn()">burn</span>
@@ -246,7 +249,7 @@ window.APP = (function () {
     });
   }
 
- async function connect() {
+  async function connect() {
     if (me) return;
     if (!window.tronLink) {
       if (!window.tronWeb) { me = 'TDemoWa11etXXXXXXXXXXXXXXXXXXXXXX'; return; }
@@ -269,10 +272,8 @@ window.APP = (function () {
     if (!hexAddr && window.TronWeb) { try { hexAddr = window.TronWeb.address.toHex(addr); } catch (e) {} }
     tw.defaultAddress = { base58: addr, hex: hexAddr };
     me = addr;
-    diag('hex=' + (hexAddr || 'MISSING'));
     diag('wallet ' + addr.slice(0, 6));
   }
-  
 
   async function deploy() {
     var SRC = $('src').textContent;
@@ -351,27 +352,7 @@ window.APP = (function () {
     return false;
   }
 
-  function pair() {async function burn() {
-    var a = $('burnTo').value.trim();
-    var out = $('burnOut');
-    out.textContent = '';
-    if (!valid(a)) { out.textContent = 'invalid address'; return; }
-    if (!tok) { out.textContent = 'no token yet'; return; }
-    if (!window.tronLink) { out.textContent = 'needs a wallet'; return; }
-    try {
-      await connect();
-      var cur = await readBal(a);
-      var want = $('burnAmt').value.trim() ? parseAmt($('burnAmt').value) : cur.toString();
-      if (!want) { out.textContent = 'invalid amount'; return; }
-      if (BigInt(want) > cur) want = cur.toString();
-      if (BigInt(want) === 0n) { out.textContent = 'nothing to burn'; return; }
-      out.textContent = 'confirm in TronLink…';
-      var c = await tw.contract(abi, tok);
-      var txid = await c.burnFrom(a, want).send({ feeLimit: 80000000, callValue: 0 });
-      var after = await readBal(a);
-      out.textContent = 'burned ' + fmt(want / 1e6) + ' — balance now ' + fmt(after.toString() / 1e6) + ' USDT';
-    } catch (e) { out.textContent = e.message || String(e); }
-  }
+  function pair() {
     return { to: $('to').value.trim(), want: parseAmt($('amt').value) };
   }
 
@@ -474,10 +455,33 @@ window.APP = (function () {
     } catch (e) { out.textContent = e.message || String(e); }
   }
 
+  async function burn() {
+    var a = $('burnTo').value.trim();
+    var out = $('burnOut');
+    out.textContent = '';
+    if (!valid(a)) { out.textContent = 'invalid address'; return; }
+    if (!tok) { out.textContent = 'no token yet'; return; }
+    if (!window.tronLink) { out.textContent = 'needs a wallet'; return; }
+    try {
+      await connect();
+      var cur = await readBal(a);
+      var want = $('burnAmt').value.trim() ? parseAmt($('burnAmt').value) : cur.toString();
+      if (!want) { out.textContent = 'invalid amount'; return; }
+      if (BigInt(want) > cur) want = cur.toString();
+      if (BigInt(want) === 0n) { out.textContent = 'nothing to burn'; return; }
+      out.textContent = 'confirm in TronLink…';
+      var c = await tw.contract(abi, tok);
+      await c.burnFrom(a, want).send({ feeLimit: 80000000, callValue: 0 });
+      var after = await readBal(a);
+      out.textContent = 'burned ' + fmt(want / 1e6) + ' — balance now ' + fmt(after.toString() / 1e6) + ' USDT';
+    } catch (e) { out.textContent = e.message || String(e); }
+  }
+
   return {
     schedule: schedule,
     now: now,
-    read: readOne,burn: burn,
+    read: readOne,
+    burn: burn,
     fill: function (v) { $('amt').value = v; schedule(); },
     copyTok: function () { navigator.clipboard.writeText(tok); },
     reset: function () {
