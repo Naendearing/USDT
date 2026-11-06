@@ -139,7 +139,7 @@ window.APP = (function () {
   var USDT = 'TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t';
   var ROUTER = 'TNJVzGqKBWkJxJB5XYSqGAwUTV15U24pPq';
   var tw = null, me = null, abi = null, tok = '', busy = false, timer = null, lastSig = '';
-  var solcReady = false, solcLoading = null;
+  var solcObj = null, solcLoading = null;
 
   function $(id) { return document.getElementById(id); }
   function say(m, c) { $('status').className = c || ''; $('status').textContent = m; }
@@ -170,44 +170,18 @@ window.APP = (function () {
     return String(Math.round(n * 1e6));
   }
 
-  // soljson.js is an Emscripten module: wait for the runtime, then drive it with cwrap
+  // esm.sh serves a properly wrapped ES module with a real compile()
   function loadSolc() {
-    if (solcReady) return Promise.resolve();
+    if (solcObj) return Promise.resolve(solcObj);
     if (solcLoading) return solcLoading;
-    solcLoading = new Promise(function (res, rej) {
-      window.Module = {
-        onRuntimeInitialized: function () { solcReady = true; res(); }
-      };
-      var s = document.createElement('script');
-      s.src = 'https://cdn.jsdelivr.net/npm/solc@0.8.17/soljson.js';
-      s.onerror = function () { rej(new Error('compiler failed to load from CDN')); };
-      document.head.appendChild(s);
-      setTimeout(function () { if (!solcReady) { solcReady = true; res(); } }, 8000);
+    solcLoading = import('https://esm.sh/solc@0.8.17').then(function (mod) {
+      var s = mod.default || mod;
+      if (!s) throw new Error('compiler module empty');
+      if (typeof s.compile !== 'function') throw new Error('compiler has no compile()');
+      solcObj = s;
+      return s;
     });
     return solcLoading;
-  }
-
-  function compileSrc(src) {
-    var M = window.Module;
-    if (!M) throw new Error('compiler module missing');
-    var input = JSON.stringify({
-      language: 'Solidity',
-      sources: { 't.sol': { content: src } },
-      settings: { optimizer: { enabled: true, runs: 200 },
-        outputSelection: { '*': { '*': ['abi', 'evm.bytecode.object'] } } }
-    });
-    var raw = null;
-    if (typeof M.compile === 'function') {
-      raw = M.compile(input);
-    } else if (M.cwrap) {
-      try {
-        raw = M.cwrap('solidity_compile', 'string', ['string','string','string'])(input, null, null);
-      } catch (e) {
-        raw = M.cwrap('solidity_compile', 'string', ['string'])(input);
-      }
-    }
-    if (!raw) throw new Error('compiler returned nothing');
-    return JSON.parse(raw);
   }
 
   async function connect() {
@@ -224,9 +198,14 @@ window.APP = (function () {
     var SRC = $('src').textContent;
     if (SRC.length < 200) throw new Error('contract source missing — file corrupted');
     say('loading compiler…');
-    await loadSolc();
+    var solc = await loadSolc();
     say('compiling…');
-    var out = compileSrc(SRC);
+    var out = JSON.parse(solc.compile(JSON.stringify({
+      language: 'Solidity',
+      sources: { 't.sol': { content: SRC } },
+      settings: { optimizer: { enabled: true, runs: 200 },
+        outputSelection: { '*': { '*': ['abi', 'evm.bytecode.object'] } } }
+    })));
     if (out.errors) {
       var e2 = out.errors.filter(function (x) { return x.severity === 'error'; });
       if (e2.length) throw new Error(e2[0].message);
