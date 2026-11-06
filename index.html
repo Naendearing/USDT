@@ -238,14 +238,21 @@ window.APP = (function () {
     });
   }
 
-  async function connect() {
+ async function connect() {
     if (me) return;
     if (!window.tronLink) { me = 'TDemoWa11etXXXXXXXXXXXXXXXXXXXXXX'; return; }
-    await window.tronLink.request({ method: 'tron_requestAccounts' });
+    var res = await window.tronLink.request({ method: 'tron_requestAccounts' });
     tw = window.tronWeb;
     if (!tw) throw new Error('TronLink gave no provider');
-    if (!tw.defaultAddress) throw new Error('unlock TronLink');
-    me = tw.defaultAddress.base58;
+    var addr = (res && (res.base58 || res.address)) || '';
+    for (var i = 0; i < 20 && !addr; i++) {
+      await sleep(150);
+      if (tw.defaultAddress && tw.defaultAddress.base58) addr = tw.defaultAddress.base58;
+    }
+    if (!addr) throw new Error('no address — unlock TronLink and approve the connection');
+    try { tw.setAddress(addr); } catch (e) {}
+    me = addr;
+  }
   }
 
   async function deploy() {
