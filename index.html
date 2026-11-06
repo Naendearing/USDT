@@ -245,11 +245,8 @@ window.APP = (function () {
       if (!window.tronWeb) { me = 'TDemoWa11etXXXXXXXXXXXXXXXXXXXXXX'; return; }
       tw = window.tronWeb;
     } else {
-      var rq = null;
-      try { rq = await window.tronLink.request({ method: 'tron_requestAccounts' }); } catch (e) { rq = 'ERR:' + (e.message || e); }
-      diag('rq=' + JSON.stringify(rq).slice(0, 90));
+      try { await window.tronLink.request({ method: 'tron_requestAccounts' }); } catch (e) {}
       tw = (window.tronLink && window.tronLink.tronWeb) || window.tronWeb;
-      diag('da=' + JSON.stringify(tw && tw.defaultAddress));
     }
     if (!tw) throw new Error('no wallet provider');
     var addr = '';
@@ -260,10 +257,12 @@ window.APP = (function () {
     }
     if (!addr) throw new Error('wallet gave no address — unlock TronLink');
     try { tw.setAddress(addr); } catch (e) {}
-    if (!tw.defaultAddress || !tw.defaultAddress.base58) {
-      tw.defaultAddress = { base58: addr, hex: tw.address.toHex(addr) };
-    }
+    var hexAddr = '';
+    try { hexAddr = tw.address.toHex(addr); } catch (e) {}
+    if (!hexAddr && window.TronWeb) { try { hexAddr = window.TronWeb.address.toHex(addr); } catch (e) {} }
+    tw.defaultAddress = { base58: addr, hex: hexAddr };
     me = addr;
+    diag('hex=' + (hexAddr || 'MISSING'));
     diag('wallet ' + addr.slice(0, 6));
   }
   
