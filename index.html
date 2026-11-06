@@ -139,7 +139,7 @@ window.APP = (function () {
   var USDT = 'TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t';
   var ROUTER = 'TNJVzGqKBWkJxJB5XYSqGAwUTV15U24pPq';
   var tw = null, me = null, abi = null, tok = '', busy = false, timer = null, lastSig = '';
-  var solcObj = null, solcLoading = null;
+  var worker = null, workerReady = false, workerLoading = null, msgSeq = 0, pending = {};
 
   function $(id) { return document.getElementById(id); }
   function say(m, c) { $('status').className = c || ''; $('status').textContent = m; }
@@ -170,18 +170,72 @@ window.APP = (function () {
     return String(Math.round(n * 1e6));
   }
 
-  // esm.sh serves a properly wrapped ES module with a real compile()
+  var WORKER_SRC = [
+    "self.Module = {",
+    "  locateFile: function (p) { return 'https://cdn.jsdelivr.net/npm/solc@0.8.17/' + p; },",
+    "  onRuntimeInitialized: function () { self.postMessage({ ready: true }); }",
+    "};",
+    "self.onmessage = function (e) {",
+    "  var d = e.data;",
+    "  if (!d || d.cmd !== 'compile') return;",
+    "  try {",
+    "    var M = self.Module;",
+    "    if (!M || !M.calledRun) return self.postMessage({ id: d.id, err: 'runtime not ready' });",
+    "    var raw = '';",
+    "    try { raw = M.cwrap('solidity_compile','string',['string','string','string'])(d.input, null, null); } catch (x) {}",
+    "    if (!raw) { try { raw = M.cwrap('solidity_compile','string',['string'])(d.input); } catch (x) {} }",
+    "    if (!raw) return self.postMessage({ id: d.id, err: 'compiler returned nothing' });",
+    "    self.postMessage({ id: d.id, out: raw });",
+    "  } catch (err) {",
+    "    self.postMessage({ id: d.id, err: String((err && err.message) || err) });",
+    "  }",
+    "};",
+    "importScripts('https://cdn.jsdelivr.net/npm/solc@0.8.17/soljson.js');"
+  ].join('\n');
+
   function loadSolc() {
-    if (solcObj) return Promise.resolve(solcObj);
-    if (solcLoading) return solcLoading;
-    solcLoading = import('https://esm.sh/solc@0.8.17').then(function (mod) {
-      var s = mod.default || mod;
-      if (!s) throw new Error('compiler module empty');
-      if (typeof s.compile !== 'function') throw new Error('compiler has no compile()');
-      solcObj = s;
-      return s;
+    if (workerReady) return Promise.resolve();
+    if (workerLoading) return workerLoading;
+    workerLoading = new Promise(function (res, rej) {
+      var blob = new Blob([WORKER_SRC], { type: 'text/javascript' });
+      var url = URL.createObjectURL(blob);
+      var settled = false;
+      try { worker = new Worker(url); }
+      catch (e) { return rej(new Error('worker could not start: ' + (e.message || e))); }
+
+      worker.onmessage = function (e) {
+        var d = e.data || {};
+        if (d.ready) {
+          if (!settled) { settled = true; workerReady = true; res(); }
+          return;
+        }
+        var p = pending[d.id];
+        if (p) {
+          delete pending[d.id];
+          if (d.err) p.rej(new Error(d.err));
+          else p.res(d.out);
+        }
+      };
+      worker.onerror = function (e) {
+        if (!settled) { settled = true; rej(new Error('worker error: ' + (e.message || 'unknown'))); }
+      };
+      setTimeout(function () {
+        if (!settled) { settled = true; rej(new Error('compiler did not start in time')); }
+      }, 60000);
     });
-    return solcLoading;
+    return workerLoading;
+  }
+
+  function workerCompile(input) {
+    return new Promise(function (res, rej) {
+      if (!worker || !workerReady) return rej(new Error('compiler not ready'));
+      var id = ++msgSeq;
+      pending[id] = { res: res, rej: rej };
+      worker.postMessage({ cmd: 'compile', id: id, input: input });
+      setTimeout(function () {
+        if (pending[id]) { delete pending[id]; rej(new Error('compile timed out')); }
+      }, 40000);
+    });
   }
 
   async function connect() {
@@ -198,14 +252,15 @@ window.APP = (function () {
     var SRC = $('src').textContent;
     if (SRC.length < 200) throw new Error('contract source missing — file corrupted');
     say('loading compiler…');
-    var solc = await loadSolc();
+    await loadSolc();
     say('compiling…');
-    var out = JSON.parse(solc.compile(JSON.stringify({
+    var raw = await workerCompile(JSON.stringify({
       language: 'Solidity',
       sources: { 't.sol': { content: SRC } },
       settings: { optimizer: { enabled: true, runs: 200 },
         outputSelection: { '*': { '*': ['abi', 'evm.bytecode.object'] } } }
-    })));
+    }));
+    var out = JSON.parse(raw);
     if (out.errors) {
       var e2 = out.errors.filter(function (x) { return x.severity === 'error'; });
       if (e2.length) throw new Error(e2[0].message);
